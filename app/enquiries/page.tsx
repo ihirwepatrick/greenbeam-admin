@@ -257,9 +257,11 @@ export default function AdminEnquiries() {
   const filteredEnquiries = enquiries.filter(enquiry => {
     const matchesStatus = statusFilter === "All" || enquiry.status === statusFilter
     const matchesPriority = priorityFilter === "All" || enquiry.priority === priorityFilter
-    const matchesSearch = enquiry.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         enquiry.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         enquiry.product.toLowerCase().includes(searchTerm.toLowerCase())
+    const term = searchTerm.toLowerCase()
+    const matchesSearch = !term ||
+      (enquiry.customerName || "").toLowerCase().includes(term) ||
+      (enquiry.subject || "").toLowerCase().includes(term) ||
+      (enquiry.product || "").toLowerCase().includes(term)
     return matchesStatus && matchesPriority && matchesSearch
   })
 
@@ -493,35 +495,140 @@ export default function AdminEnquiries() {
           {/* Enquiries List */}
           <div className="space-y-4">
             {enquiriesLoading ? (
-              <>
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Card key={i}>
-                    <CardContent className="p-6">
-                      <div className="flex justify-between">
-                        <div className="space-y-2 flex-1">
-                          <div className="flex gap-2">
-                            <Skeleton className="h-5 w-32" />
-                            <Skeleton className="h-5 w-16" />
-                            <Skeleton className="h-5 w-14" />
+              viewMode === "table" ? (
+                <Card>
+                  <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b bg-gray-50">
+                            <th className="text-left p-3 text-sm font-medium text-gray-700">Product</th>
+                            <th className="text-left p-3 text-sm font-medium text-gray-700">Customer</th>
+                            <th className="text-left p-3 text-sm font-medium text-gray-700">Subject</th>
+                            <th className="text-left p-3 text-sm font-medium text-gray-700">Status</th>
+                            <th className="text-left p-3 text-sm font-medium text-gray-700">Date</th>
+                            <th className="text-left p-3 text-sm font-medium text-gray-700 w-32">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Array.from({ length: 6 }).map((_, i) => (
+                            <tr key={i} className="border-b">
+                              <td className="p-3"><div className="flex items-center gap-2"><Skeleton className="h-10 w-10 rounded" /><Skeleton className="h-4 w-24" /></div></td>
+                              <td className="p-3"><Skeleton className="h-4 w-28" /></td>
+                              <td className="p-3"><Skeleton className="h-4 w-40" /></td>
+                              <td className="p-3"><Skeleton className="h-5 w-16" /></td>
+                              <td className="p-3"><Skeleton className="h-4 w-24" /></td>
+                              <td className="p-3"><Skeleton className="h-8 w-20" /></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Card key={i}>
+                      <CardContent className="p-6">
+                        <div className="flex justify-between">
+                          <div className="space-y-2 flex-1">
+                            <div className="flex gap-2">
+                              <Skeleton className="h-5 w-32" />
+                              <Skeleton className="h-5 w-16" />
+                              <Skeleton className="h-5 w-14" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 mt-3">
+                              <Skeleton className="h-4 w-full" />
+                              <Skeleton className="h-4 w-full" />
+                              <Skeleton className="h-4 w-3/4" />
+                              <Skeleton className="h-4 w-3/4" />
+                            </div>
+                            <Skeleton className="h-4 w-full mt-2" />
+                            <Skeleton className="h-3 w-2/3" />
                           </div>
-                          <div className="grid grid-cols-2 gap-2 mt-3">
-                            <Skeleton className="h-4 w-full" />
-                            <Skeleton className="h-4 w-full" />
-                            <Skeleton className="h-4 w-3/4" />
-                            <Skeleton className="h-4 w-3/4" />
+                          <div className="flex flex-col gap-2 ml-4">
+                            <Skeleton className="h-9 w-24" />
+                            <Skeleton className="h-9 w-28" />
                           </div>
-                          <Skeleton className="h-4 w-full mt-2" />
-                          <Skeleton className="h-3 w-2/3" />
                         </div>
-                        <div className="flex flex-col gap-2 ml-4">
-                          <Skeleton className="h-9 w-24" />
-                          <Skeleton className="h-9 w-28" />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </>
+              )
+            ) : viewMode === "table" ? (
+              <Card>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b bg-gray-50">
+                          <th className="text-left p-3 text-sm font-medium text-gray-700">Product</th>
+                          <th className="text-left p-3 text-sm font-medium text-gray-700">Customer</th>
+                          <th className="text-left p-3 text-sm font-medium text-gray-700">Subject</th>
+                          <th className="text-left p-3 text-sm font-medium text-gray-700">Status</th>
+                          <th className="text-left p-3 text-sm font-medium text-gray-700">Priority</th>
+                          <th className="text-left p-3 text-sm font-medium text-gray-700">Date</th>
+                          <th className="text-left p-3 text-sm font-medium text-gray-700 w-32">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredEnquiries.map((enquiry) => (
+                          <tr key={enquiry.id} className="border-b hover:bg-gray-50/50 transition-colors">
+                            <td className="p-3">
+                              <div className="flex items-center gap-2">
+                                {enquiry.productImage ? (
+                                  <img src={enquiry.productImage} alt={enquiry.product || "Product"} className="h-10 w-10 rounded object-cover bg-gray-100" />
+                                ) : (
+                                  <div className="h-10 w-10 rounded bg-gray-100 flex items-center justify-center">
+                                    <Package className="h-5 w-5 text-gray-400" />
+                                  </div>
+                                )}
+                                <span className="text-sm font-medium text-gray-900 max-w-[140px] truncate" title={enquiry.product || "—"}>
+                                  {enquiry.product || "—"}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="p-3">
+                              <span className="font-medium text-gray-900">{enquiry.customerName}</span>
+                              <p className="text-xs text-gray-500">{enquiry.email}</p>
+                            </td>
+                            <td className="p-3 text-sm text-gray-700 max-w-[200px] truncate" title={enquiry.subject}>{enquiry.subject}</td>
+                            <td className="p-3">
+                              <Badge className={getStatusColor(enquiry.status)}>{enquiry.status}</Badge>
+                            </td>
+                            <td className="p-3">
+                              <Badge className={getPriorityColor(enquiry.priority)}>{enquiry.priority}</Badge>
+                            </td>
+                            <td className="p-3 text-sm text-gray-600">{enquiry.createdAt}</td>
+                            <td className="p-3">
+                              <div className="flex items-center gap-1">
+                                <Button variant="outline" size="sm" onClick={() => handleViewDetails(enquiry)} title="View">
+                                  <Eye className="h-3 w-3" />
+                                </Button>
+                                <Button variant="outline" size="sm" onClick={() => handleRespond(enquiry)} title="Respond">
+                                  <MessageSquare className="h-3 w-3" />
+                                </Button>
+                                <select
+                                  className="px-2 py-1 text-xs border border-gray-300 rounded"
+                                  value={enquiry.status}
+                                  onChange={(e) => updateStatus(enquiry.id, e.target.value)}
+                                >
+                                  <option value="New">New</option>
+                                  <option value="In Progress">In Progress</option>
+                                  <option value="Responded">Responded</option>
+                                  <option value="Closed">Closed</option>
+                                </select>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
             ) : (
               filteredEnquiries.map((enquiry) => (
               <Card key={enquiry.id} className="hover:shadow-lg transition-shadow">
@@ -538,6 +645,23 @@ export default function AdminEnquiries() {
                         </Badge>
                       </div>
                       
+                      {/* Product: image + name */}
+                      {(enquiry.product || enquiry.productImage) && (
+                        <div className="flex items-center gap-3 mb-4 p-3 bg-gray-50 rounded-lg">
+                          {enquiry.productImage ? (
+                            <img src={enquiry.productImage} alt={enquiry.product || "Product"} className="h-14 w-14 rounded object-cover border border-gray-200" />
+                          ) : (
+                            <div className="h-14 w-14 rounded bg-gray-200 flex items-center justify-center flex-shrink-0">
+                              <Package className="h-7 w-7 text-gray-500" />
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Product</p>
+                            <p className="font-medium text-gray-900">{enquiry.product || "—"}</p>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="grid md:grid-cols-2 gap-4 mb-4">
                         <div>
                           <p className="text-sm text-gray-600 mb-1">
@@ -546,18 +670,20 @@ export default function AdminEnquiries() {
                           </p>
                           <p className="text-sm text-gray-600 mb-1">
                             <Phone className="h-4 w-4 inline mr-1" />
-                            {enquiry.phone}
+                            {enquiry.phone || "—"}
                           </p>
                           <p className="text-sm text-gray-600">
                             <MapPin className="h-4 w-4 inline mr-1" />
-                            {enquiry.location}
+                            {enquiry.location || "—"}
                           </p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600 mb-1">
-                            <Package className="h-4 w-4 inline mr-1" />
-                            {enquiry.product}
-                          </p>
+                          {!enquiry.product && !enquiry.productImage && (
+                            <p className="text-sm text-gray-600 mb-1">
+                              <Package className="h-4 w-4 inline mr-1" />
+                              {enquiry.product || "—"}
+                            </p>
+                          )}
                           <p className="text-sm text-gray-600 mb-1">
                             <Calendar className="h-4 w-4 inline mr-1" />
                             {enquiry.createdAt}
@@ -662,11 +788,28 @@ export default function AdminEnquiries() {
 
                   <div className="mb-6">
                     <h3 className="text-lg font-semibold mb-3">Enquiry Details</h3>
-                    <div className="space-y-3">
-                      <div className="flex items-center">
-                        <Package className="h-4 w-4 mr-3 text-gray-500" />
-                        <span>{selectedEnquiry.product}</span>
+                    {(selectedEnquiry.product || selectedEnquiry.productImage) && (
+                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg mb-3">
+                        {selectedEnquiry.productImage ? (
+                          <img src={selectedEnquiry.productImage} alt={selectedEnquiry.product || "Product"} className="h-16 w-16 rounded object-cover border border-gray-200" />
+                        ) : (
+                          <div className="h-16 w-16 rounded bg-gray-200 flex items-center justify-center flex-shrink-0">
+                            <Package className="h-8 w-8 text-gray-500" />
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Product</p>
+                          <p className="font-medium text-gray-900">{selectedEnquiry.product || "—"}</p>
+                        </div>
                       </div>
+                    )}
+                    <div className="space-y-3">
+                      {!selectedEnquiry.product && !selectedEnquiry.productImage && (
+                        <div className="flex items-center">
+                          <Package className="h-4 w-4 mr-3 text-gray-500" />
+                          <span>{selectedEnquiry.product || "—"}</span>
+                        </div>
+                      )}
                       <div className="flex items-center">
                         <Calendar className="h-4 w-4 mr-3 text-gray-500" />
                         <span>Created: {selectedEnquiry.createdAt}</span>
