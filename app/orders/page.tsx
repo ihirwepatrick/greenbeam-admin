@@ -130,6 +130,26 @@ export default function AdminOrdersPage() {
   
   const { data: statsData } = useOrderStats()
 
+  // Helper function to get display data from order (must be defined before filteredOrders)
+  const getOrderDisplayData = (order: any) => {
+    if (order && 'customer' in order) {
+      return order as DisplayOrder
+    }
+    return {
+      id: order?.orderNumber || order?.id,
+      customer: order?.user?.name || 'N/A',
+      email: order?.user?.email || 'N/A',
+      products: order?.items?.map((item: any) => item.product?.name || 'Unknown') || [],
+      total: typeof order?.totalAmount === 'string' ? parseFloat(order.totalAmount) : (order?.totalAmount ?? order?.total ?? 0),
+      status: order?.status || 'unknown',
+      paymentStatus: order?.paymentStatus || 'unknown',
+      date: order?.createdAt || order?.updatedAt || new Date().toISOString(),
+      shippingAddress: order?.shippingAddress ?
+        `${order.shippingAddress.address || ''}, ${order.shippingAddress.city || ''}, ${order.shippingAddress.state || ''}`.trim() || 'N/A'
+        : 'N/A'
+    }
+  }
+
   const ordersToShow = (ordersData as any)?.orders ?? fallbackOrders
   const pagination = (ordersData as any)?.pagination
   const filteredOrders = ordersToShow.filter((order: any) => {
@@ -166,26 +186,6 @@ export default function AdminOrdersPage() {
 
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending
     return <Badge variant={config.variant}>{config.label}</Badge>
-  }
-
-  // Helper function to get display data from order
-  const getOrderDisplayData = (order: any) => {
-    if (order && 'customer' in order) {
-      return order as DisplayOrder
-    }
-    return {
-      id: order?.orderNumber || order?.id,
-      customer: order?.user?.name || 'N/A',
-      email: order?.user?.email || 'N/A',
-      products: order?.items?.map((item: any) => item.product?.name || 'Unknown') || [],
-      total: typeof order?.totalAmount === 'string' ? parseFloat(order.totalAmount) : (order?.totalAmount ?? order?.total ?? 0),
-      status: order?.status || 'unknown',
-      paymentStatus: order?.paymentStatus || 'unknown',
-      date: order?.createdAt || order?.updatedAt || new Date().toISOString(),
-      shippingAddress: order?.shippingAddress ?
-        `${order.shippingAddress.address || ''}, ${order.shippingAddress.city || ''}, ${order.shippingAddress.state || ''}`.trim() || 'N/A'
-        : 'N/A'
-    }
   }
 
   return (
