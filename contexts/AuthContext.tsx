@@ -70,33 +70,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
+    setIsLoading(true);
     try {
-      console.log('AuthContext: Attempting login for:', email)
-      setIsLoading(true);
       const response = await authService.login({ email, password });
-      
       if (response.success) {
         const { user: userData, token, refreshToken } = response.data;
-        console.log('AuthContext: Login successful, user data:', { name: userData.name, role: userData.role, email: userData.email })
-        
-        // Store tokens
         apiClient.setToken(token);
         localStorage.setItem('refresh_token', refreshToken);
-        console.log('AuthContext: Tokens stored successfully')
-        
-        // Set user
         setUser(userData);
-        console.log('AuthContext: User state updated')
         return true;
-      } else {
-        console.log('AuthContext: Login failed - response not successful')
       }
       return false;
     } catch (error) {
-      console.error('AuthContext: Login failed:', error);
-      return false;
+      setIsLoading(false);
+      throw error;
     } finally {
-      console.log('AuthContext: Setting login loading to false')
       setIsLoading(false);
     }
   };

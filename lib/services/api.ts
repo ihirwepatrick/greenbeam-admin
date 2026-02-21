@@ -113,6 +113,11 @@ export const enquiryService = {
       createdAt: e.createdAt,
       updatedAt: e.updatedAt,
       responses: e.responses,
+      product: e.product,
+      productId: e.productId,
+      productImage: e.productImage,
+      phone: e.phone,
+      priority: e.priority,
     }));
 
     const mapped: ApiResponse<PaginationResponse<Enquiry>> = {
@@ -157,15 +162,28 @@ export const enquiryService = {
         createdAt: e.createdAt,
         updatedAt: e.updatedAt,
         responses: e.responses,
+        product: e.product,
+        productId: e.productId,
+        productImage: e.productImage,
+        phone: e.phone,
+        priority: e.priority,
       },
     };
     return mapped;
   },
 
   async updateEnquiryStatus(id: string, data: UpdateEnquiryStatusRequest): Promise<ApiResponse<{ id: string; status: string; message: string }>> {
+    const toBackendStatus = (s: string) => {
+      const v = s.toLowerCase().replace(/-/g, '_');
+      if (v === 'pending' || v === 'new') return 'NEW';
+      if (v === 'in_progress' || v === 'in-progress') return 'IN_PROGRESS';
+      if (v === 'responded' || v === 'resolved') return 'RESPONDED';
+      if (v === 'closed') return 'CLOSED';
+      return 'NEW';
+    };
     return apiClient.patch<ApiResponse<{ id: string; status: string; message: string }>>(
       API_ENDPOINTS.ENQUIRIES.STATUS(id),
-      data
+      { status: toBackendStatus(data.status) }
     );
   },
 
@@ -191,47 +209,54 @@ export const productService = {
     return apiClient.get<ApiResponse<Product>>(API_ENDPOINTS.PRODUCTS.BY_ID(id));
   },
 
-  async createProduct(data: CreateProductRequest): Promise<ApiResponse<Product>> {
+  async createProduct(data: CreateProductRequest, onProgress?: (progress: number) => void): Promise<ApiResponse<Product>> {
     const formData = new FormData();
     formData.append('name', data.name);
-    formData.append('description', data.description);
+    formData.append('description', data.description ?? '');
     formData.append('category', data.category);
+    formData.append('price', String(data.price));
     if (data.status) formData.append('status', data.status);
-    if (data.features) formData.append('features', JSON.stringify(data.features));
-    if (data.specifications) formData.append('specifications', typeof data.specifications === 'string' ? data.specifications : JSON.stringify(data.specifications));
+    if (data.features?.length) formData.append('features', JSON.stringify(data.features));
+    if (data.specifications != null && typeof data.specifications === 'object' && !Array.isArray(data.specifications)) {
+      formData.append('specifications', JSON.stringify(data.specifications));
+    } else if (typeof data.specifications === 'string' && data.specifications.trim()) {
+      try {
+        const parsed = JSON.parse(data.specifications);
+        if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+          formData.append('specifications', JSON.stringify(parsed));
+        }
+      } catch (e) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[productService.createProduct] specifications skipped (invalid JSON or not an object):', (e as Error).message);
+        }
+      }
+    }
     formData.append('image', data.image);
-    if (data.images) {
-      data.images.forEach((image) => {
-        formData.append('images', image);
-      });
+    if (data.images?.length) {
+      data.images.forEach((image) => formData.append('images', image));
     }
-
-    // Debug logging
-    console.log('createProduct - FormData contents:');
-    for (let [key, value] of formData.entries()) {
-      console.log(`${key}:`, value);
+    if (process.env.NODE_ENV === 'development') {
+      const entries: Record<string, string> = {};
+      formData.forEach((value, key) => { entries[key] = value instanceof File ? `[File ${value.name}]` : String(value); });
+      console.log('[productService.createProduct] FormData entries:', entries);
     }
-    console.log('createProduct - Endpoint:', API_ENDPOINTS.PRODUCTS.BASE);
-
-    return apiClient.upload<ApiResponse<Product>>(API_ENDPOINTS.PRODUCTS.BASE, formData);
+    return apiClient.upload<ApiResponse<Product>>(API_ENDPOINTS.PRODUCTS.BASE, formData, onProgress);
   },
 
-  async updateProduct(id: string, data: UpdateProductRequest): Promise<ApiResponse<Product>> {
+  async updateProduct(id: string, data: UpdateProductRequest, onProgress?: (progress: number) => void): Promise<ApiResponse<Product>> {
     const formData = new FormData();
-    if (data.name) formData.append('name', data.name);
-    if (data.description) formData.append('description', data.description);
-    if (data.category) formData.append('category', data.category);
-    if (data.status) formData.append('status', data.status);
-    if (data.features) formData.append('features', JSON.stringify(data.features));
-    if (data.specifications) formData.append('specifications', typeof data.specifications === 'string' ? data.specifications : JSON.stringify(data.specifications));
+    if (data.name != null) formData.append('name', data.name);
+    if (data.description != null) formData.append('description', data.description);
+    if (data.category != null) formData.append('category', data.category);
+    if (data.price != null) formData.append('price', String(data.price));
+    if (data.status != null) formData.append('status', data.status);
+    if (data.features != null) formData.append('features', JSON.stringify(data.features));
+    if (data.specifications != null) formData.append('specifications', typeof data.specifications === 'string' ? data.specifications : JSON.stringify(data.specifications));
     if (data.image) formData.append('image', data.image);
-    if (data.images) {
-      data.images.forEach((image) => {
-        formData.append('images', image);
-      });
+    if (data.images?.length) {
+      data.images.forEach((image) => formData.append('images', image));
     }
-
-    return apiClient.upload<ApiResponse<Product>>(API_ENDPOINTS.PRODUCTS.BY_ID(id), formData);
+    return apiClient.uploadPut<ApiResponse<Product>>(API_ENDPOINTS.PRODUCTS.BY_ID(id), formData, onProgress);
   },
 
   async deleteProduct(id: string): Promise<ApiResponse<{ message: string }>> {

@@ -30,9 +30,13 @@ import {
   Truck
 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { toast } from "sonner"
 import AdminGuard from "@/components/AdminGuard"
+import { TableSkeleton } from "@/components/TableSkeleton"
 import { useAuth } from "@/contexts/AuthContext"
 import { useAllOrders, useOrderStats } from "@/hooks/use-api"
+import { orderService } from "@/lib/services/api"
+import { formatRWF } from "@/lib/utils"
 import { sidebarLinks } from "@/lib/admin-links"
 
 const MAIN_SITE_URL = process.env.NEXT_PUBLIC_MAIN_SITE_URL || "/"
@@ -116,23 +120,25 @@ export default function AdminOrdersPage() {
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(10)
   
-  const { data: ordersData, loading, error } = useAllOrders({
+  const { data: ordersData, loading, execute: refetchOrders } = useAllOrders({
     search: searchTerm || undefined,
     status: selectedStatus !== 'all' ? selectedStatus : undefined,
+    paymentStatus: selectedPaymentStatus !== 'all' ? selectedPaymentStatus : undefined,
     page,
     limit
   })
   
   const { data: statsData } = useOrderStats()
 
-  const filteredOrders = fallbackOrders.filter((order: DisplayOrder) => {
+  const ordersToShow = (ordersData as any)?.orders ?? fallbackOrders
+  const filteredOrders = ordersToShow.filter((order: any) => {
+    const display = getOrderDisplayData(order)
     const matchesSearch =
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.email.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = selectedStatus === "all" || order.status === selectedStatus
-    const matchesPaymentStatus = selectedPaymentStatus === "all" || order.paymentStatus === selectedPaymentStatus
-
+      String(display.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(display.customer).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(display.email).toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesStatus = selectedStatus === "all" || display.status === selectedStatus
+    const matchesPaymentStatus = selectedPaymentStatus === "all" || display.paymentStatus === selectedPaymentStatus
     return matchesSearch && matchesStatus && matchesPaymentStatus
   })
 
@@ -161,31 +167,39 @@ export default function AdminOrdersPage() {
     return <Badge variant={config.variant}>{config.label}</Badge>
   }
 
-  const ordersToShow = ordersData?.data || fallbackOrders
-  const pagination = ordersData?.pagination
-
   // Helper function to get display data from order
   const getOrderDisplayData = (order: any) => {
-    if ('customer' in order) {
-      // It's a DisplayOrder (fallback data)
+    if (order && 'customer' in order) {
       return order as DisplayOrder
-    } else {
-      // It's an actual Order from API
-      return {
-        id: order.orderNumber || order.id,
-        customer: order.user?.name || 'N/A',
-        email: order.user?.email || 'N/A',
-        products: order.items?.map((item: any) => item.product?.name || 'Unknown') || [],
-        total: typeof order.total === 'string' ? parseFloat(order.total) : order.total || 0,
-        status: order.status || 'unknown',
-        paymentStatus: order.paymentStatus || 'unknown',
-        date: order.createdAt || order.updatedAt || new Date().toISOString(),
-        shippingAddress: order.shippingAddress ? 
-          `${order.shippingAddress.address}, ${order.shippingAddress.city}, ${order.shippingAddress.state}` 
-          : 'N/A'
-      }
+    }
+    return {
+      id: order?.orderNumber || order?.id,
+      customer: order?.user?.name || 'N/A',
+      email: order?.user?.email || 'N/A',
+      products: order?.items?.map((item: any) => item.product?.name || 'Unknown') || [],
+      total: typeof order?.totalAmount === 'string' ? parseFloat(order.totalAmount) : (order?.totalAmount ?? order?.total ?? 0),
+      status: order?.status || 'unknown',
+      paymentStatus: order?.paymentStatus || 'unknown',
+      date: order?.createdAt || order?.updatedAt || new Date().toISOString(),
+      shippingAddress: order?.shippingAddress ?
+        `${order.shippingAddress.address || ''}, ${order.shippingAddress.city || ''}, ${order.shippingAddress.state || ''}`.trim() || 'N/A'
+        : 'N/A'
     }
   }
+
+  const ordersToShow = (ordersData as any)?.orders ?? fallbackOrders
+  const pagination = (ordersData as any)?.pagination
+
+  const filteredOrders = ordersToShow.filter((order: any) => {
+    const display = getOrderDisplayData(order)
+    const matchesSearch =
+      String(display.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(display.customer).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(display.email).toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesStatus = selectedStatus === 'all' || display.status === selectedStatus
+    const matchesPaymentStatus = selectedPaymentStatus === 'all' || display.paymentStatus === selectedPaymentStatus
+    return matchesSearch && matchesStatus && matchesPaymentStatus
+  })
 
   return (
     <AdminGuard>
@@ -251,7 +265,7 @@ export default function AdminOrdersPage() {
                     <Download className="h-4 w-4 mr-2" />
                     Export
                   </Button>
-                  <Button onClick={() => window.location.reload()}>
+                  <Button onClick={async () => { await refetchOrders(); toast.success("Orders refreshed."); }}>
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Refresh
                   </Button>
@@ -310,6 +324,9 @@ export default function AdminOrdersPage() {
             <CardTitle>Orders ({filteredOrders.length})</CardTitle>
           </CardHeader>
           <CardContent>
+            {loading ? (
+              <TableSkeleton rows={6} cols={8} />
+            ) : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -324,16 +341,7 @@ export default function AdminOrdersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {ordersToShow.filter((order) => {
-                  const displayData = getOrderDisplayData(order)
-                  const matchesSearch = searchTerm === "" ||
-                    displayData.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    displayData.customer?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    displayData.email?.toLowerCase().includes(searchTerm.toLowerCase())
-                  const matchesStatus = selectedStatus === "all" || displayData.status === selectedStatus
-                  const matchesPaymentStatus = selectedPaymentStatus === "all" || displayData.paymentStatus === selectedPaymentStatus
-                  return matchesSearch && matchesStatus && matchesPaymentStatus
-                }).map((order) => {
+                {filteredOrders.map((order) => {
                   const displayData = getOrderDisplayData(order)
                   return (
                   <TableRow key={displayData.id}>
@@ -353,7 +361,7 @@ export default function AdminOrdersPage() {
                         ))}
                       </div>
                     </TableCell>
-                    <TableCell className="font-medium">${displayData.total.toFixed(2)}</TableCell>
+                    <TableCell className="font-medium">{formatRWF(displayData.total)}</TableCell>
                     <TableCell>{getStatusBadge(displayData.status)}</TableCell>
                     <TableCell>{getPaymentStatusBadge(displayData.paymentStatus)}</TableCell>
                     <TableCell className="text-sm text-gray-600">{displayData.date}</TableCell>
@@ -369,7 +377,16 @@ export default function AdminOrdersPage() {
                             <Eye className="h-4 w-4 mr-2" />
                             View Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem>Update Status</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => {
+                            const orderId = order?.id ?? (order as any)?.orderNumber
+                            if (orderId && !String(orderId).startsWith('#')) {
+                              orderService.updateOrderStatus(String(orderId), { status: 'CONFIRMED' })
+                                .then((res) => { if (res.success) { toast.success("Order status updated."); refetchOrders(); } else toast.error("Failed to update status."); })
+                                .catch((e) => toast.error(e instanceof Error ? e.message : "Failed to update status."))
+                            } else toast.info("Update status is available for orders from the API.")
+                          }}>
+                            Update Status
+                          </DropdownMenuItem>
                           <DropdownMenuItem>Print Invoice</DropdownMenuItem>
                           <DropdownMenuItem>Send Email</DropdownMenuItem>
                         </DropdownMenuContent>
@@ -380,17 +397,9 @@ export default function AdminOrdersPage() {
                 })}
               </TableBody>
             </Table>
+            )}
 
-            {ordersToShow.filter((order) => {
-              const displayData = getOrderDisplayData(order)
-              const matchesSearch = searchTerm === "" ||
-                displayData.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                displayData.customer?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                displayData.email?.toLowerCase().includes(searchTerm.toLowerCase())
-              const matchesStatus = selectedStatus === "all" || displayData.status === selectedStatus
-              const matchesPaymentStatus = selectedPaymentStatus === "all" || displayData.paymentStatus === selectedPaymentStatus
-              return matchesSearch && matchesStatus && matchesPaymentStatus
-            }).length === 0 && (
+            {!loading && filteredOrders.length === 0 && (
               <div className="text-center py-12">
                 <p className="text-gray-500 text-lg">No orders found matching your criteria.</p>
                 <Button

@@ -1,4 +1,7 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://greenbeam-backend.onrender.com/api/v1';
+// Production: use env. Development: use env or /api/v1 (Next proxy) to avoid CORS
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ??
+  (process.env.NODE_ENV === 'production' ? '' : '/api/v1');
 
 class ApiClient {
   private baseURL: string;
@@ -88,18 +91,29 @@ class ApiClient {
       }
 
       if (!response.ok) {
+        const errorText = await response.text();
         if (response.status === 401) {
           this.setToken(null);
-          throw new Error('Authentication failed');
+          throw new Error('Invalid email or password.');
         }
-        const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        if (response.status >= 500) {
+          throw new Error('Server error. Please try again later.');
+        }
+        throw new Error(parseApiError(errorText, response.status));
       }
 
       const data = await response.json();
       return data;
     } catch (error) {
-      throw error;
+      if (error instanceof Error) {
+        const msg = (error.message || '').toLowerCase();
+        if (msg.includes('fetch') || msg.includes('network') || error.name === 'TypeError') {
+          throw new Error('Unable to connect. Please check your connection and try again.');
+        }
+        throw error;
+      }
+      if (typeof (error as any)?.message === 'string') throw new Error((error as any).message);
+      throw new Error('Something went wrong. Please try again.');
     }
   }
 
@@ -166,20 +180,9 @@ class ApiClient {
             reject(new Error('Invalid JSON response'));
           }
         } else {
-          // Provide more detailed error information
-          let errorMessage = `HTTP ${xhr.status}`;
-          try {
-            const errorData = JSON.parse(xhr.responseText);
-            if (errorData.error && errorData.error.message) {
-              errorMessage += `: ${errorData.error.message}`;
-            } else if (errorData.message) {
-              errorMessage += `: ${errorData.message}`;
-            }
-          } catch {
-            // If response is not JSON, include response text if available
-            if (xhr.responseText) {
-              errorMessage += `: ${xhr.responseText}`;
-            }
+          const errorMessage = parseApiError(xhr.responseText, xhr.status);
+          if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
+            console.error('[apiClient.upload] failed', xhr.status, url, 'response:', xhr.responseText);
           }
           reject(new Error(errorMessage));
         }
@@ -196,6 +199,64 @@ class ApiClient {
       xhr.send(formData);
     });
   }
+
+  // PUT with FormData (e.g. product update)
+  async uploadPut<T>(
+    endpoint: string,
+    formData: FormData,
+    onProgress?: (progress: number) => void
+  ): Promise<T> {
+    const url = `${this.baseURL}${endpoint}`;
+    const token = this.getToken();
+
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+
+      xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable && onProgress) {
+          onProgress((event.loaded / event.total) * 100);
+        }
+      });
+
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            resolve(JSON.parse(xhr.responseText));
+          } catch {
+            reject(new Error('Invalid JSON response'));
+          }
+        } else {
+          reject(new Error(parseApiError(xhr.responseText, xhr.status)));
+        }
+      });
+
+      xhr.addEventListener('error', () => reject(new Error('Network error')));
+
+      xhr.open('PUT', url);
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.send(formData);
+    });
+  }
+}
+
+function parseApiError(responseText: string, status: number): string {
+  try {
+    const body = JSON.parse(responseText);
+    const err = body?.error;
+    if (err?.message) {
+      const details = err.details;
+      if (Array.isArray(details) && details.length > 0) {
+        const first = details[0];
+        const msg = typeof first === 'string' ? first : first?.message;
+        if (msg) return `${err.message}: ${msg}`;
+      }
+      return err.message;
+    }
+    if (body?.message) return body.message;
+  } catch {
+    // ignore
+  }
+  return responseText || `Request failed (${status}).`;
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);

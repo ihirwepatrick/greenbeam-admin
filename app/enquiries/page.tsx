@@ -31,7 +31,11 @@ import {
   Star,
   MapPin,
   Bell,
+  LayoutGrid,
+  List,
 } from "lucide-react"
+import { toast } from "sonner"
+import { Skeleton } from "@/components/ui/skeleton"
 import NotificationSystem from "@/components/NotificationSystem"
 import EmailService from "@/components/EmailService"
 import { useEnquiries, useDashboardStats } from "@/hooks/use-api"
@@ -133,6 +137,7 @@ export default function AdminEnquiries() {
   const [priorityFilter, setPriorityFilter] = useState("All")
   const [searchTerm, setSearchTerm] = useState("")
   const [showNotifications, setShowNotifications] = useState(false)
+  const [viewMode, setViewMode] = useState<"grid" | "table">("grid")
 
   const { logout, user } = useAuth()
   const { data: apiEnquiriesResponse, loading: enquiriesLoading, execute: refetchEnquiries } = useEnquiries({ limit: 50 })
@@ -154,13 +159,17 @@ export default function AdminEnquiries() {
     return 'Medium'
   }
   
-  // Map API enquiries to component format
-  const mappedApiEnquiries = (apiEnquiriesResponse?.data || []).map((e: any) => ({
+  // API returns { data: list, pagination }; ensure we use the array
+  const apiList = Array.isArray(apiEnquiriesResponse?.data)
+    ? apiEnquiriesResponse.data
+    : (apiEnquiriesResponse?.data?.data ?? [])
+  const mappedApiEnquiries = apiList.map((e: any) => ({
     id: e.id,
     customerName: e.customerName || e.name,
     email: e.email,
     phone: e.phone || "",
     product: e.product || "",
+    productImage: e.productImage || "",
     subject: e.subject,
     message: e.message,
     status: normalizeStatusLabel(e.status),
@@ -225,15 +234,16 @@ export default function AdminEnquiries() {
       const res = await enquiryService.respondToEnquiry(selectedEnquiry.id, payload)
       if (res.success) {
         await refetchEnquiries()
-        console.log('Response sent successfully (email dispatched by backend).')
+        setResponseMessage("")
+        setShowResponseModal(false)
+        setSelectedEnquiry(null)
+        toast.success("Response sent. The customer will receive an email.")
       } else {
-        console.warn('Response API did not return success; check backend logs.')
+        toast.error("Failed to send response. Please try again.")
       }
-      setResponseMessage("")
-      setShowResponseModal(false)
-      setSelectedEnquiry(null)
     } catch (error) {
-      console.error("Failed to send response:", error)
+      const msg = error instanceof Error ? error.message : "Failed to send response."
+      toast.error(msg)
     } finally {
       setIsSendingResponse(false)
     }
@@ -429,25 +439,52 @@ export default function AdminEnquiries() {
                     />
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <select
-                    className="px-3 py-2 border border-gray-300 rounded-md"
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                  >
-                    {statusOptions.map(option => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
-                  <select
-                    className="px-3 py-2 border border-gray-300 rounded-md"
-                    value={priorityFilter}
-                    onChange={(e) => setPriorityFilter(e.target.value)}
-                  >
-                    {priorityOptions.map(option => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
+                <div className="flex items-center gap-4 flex-wrap">
+                  <div className="flex gap-2">
+                    <select
+                      className="px-3 py-2 border border-gray-300 rounded-md"
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                    >
+                      {statusOptions.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                    <select
+                      className="px-3 py-2 border border-gray-300 rounded-md"
+                      value={priorityFilter}
+                      onChange={(e) => setPriorityFilter(e.target.value)}
+                    >
+                      {priorityOptions.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700">View:</span>
+                    <div className="flex border border-gray-300 rounded-md overflow-hidden">
+                      <Button
+                        type="button"
+                        variant={viewMode === "grid" ? "default" : "ghost"}
+                        size="sm"
+                        className="rounded-none"
+                        onClick={() => setViewMode("grid")}
+                        title="Grid view"
+                      >
+                        <LayoutGrid className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={viewMode === "table" ? "default" : "ghost"}
+                        size="sm"
+                        className="rounded-none"
+                        onClick={() => setViewMode("table")}
+                        title="Table view"
+                      >
+                        <List className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -455,7 +492,38 @@ export default function AdminEnquiries() {
 
           {/* Enquiries List */}
           <div className="space-y-4">
-            {filteredEnquiries.map((enquiry) => (
+            {enquiriesLoading ? (
+              <>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Card key={i}>
+                    <CardContent className="p-6">
+                      <div className="flex justify-between">
+                        <div className="space-y-2 flex-1">
+                          <div className="flex gap-2">
+                            <Skeleton className="h-5 w-32" />
+                            <Skeleton className="h-5 w-16" />
+                            <Skeleton className="h-5 w-14" />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 mt-3">
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-4 w-3/4" />
+                            <Skeleton className="h-4 w-3/4" />
+                          </div>
+                          <Skeleton className="h-4 w-full mt-2" />
+                          <Skeleton className="h-3 w-2/3" />
+                        </div>
+                        <div className="flex flex-col gap-2 ml-4">
+                          <Skeleton className="h-9 w-24" />
+                          <Skeleton className="h-9 w-28" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </>
+            ) : (
+              filteredEnquiries.map((enquiry) => (
               <Card key={enquiry.id} className="hover:shadow-lg transition-shadow">
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between">
@@ -536,7 +604,8 @@ export default function AdminEnquiries() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+              )))
+            }
           </div>
 
           {/* Pagination */}

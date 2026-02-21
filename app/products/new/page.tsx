@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -25,6 +26,7 @@ import {
   CheckCircle2,
 } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { toast } from "sonner"
 import { productService } from "@/lib/services/api"
 import { sidebarLinks } from "@/lib/admin-links"
 import AdminGuard from "@/components/AdminGuard"
@@ -32,15 +34,18 @@ import AdminGuard from "@/components/AdminGuard"
 const MAIN_SITE_URL = process.env.NEXT_PUBLIC_MAIN_SITE_URL || "/"
 
 export default function CreateProduct() {
+  const router = useRouter()
   const [formData, setFormData] = useState({
     name: "",
     category: "",
     description: "",
+    price: "" as string | number,
     status: "AVAILABLE",
     images: 0,
     features: [""],
-    specifications: ""
+    specifications: [{ key: "", value: "" }] as { key: string; value: string }[]
   })
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [isSaving, setIsSaving] = useState(false)
   const [categories, setCategories] = useState<string[]>([])
   const [isLoadingCategories, setIsLoadingCategories] = useState(true)
@@ -51,6 +56,20 @@ export default function CreateProduct() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [thumbnail, setThumbnail] = useState<File | null>(null)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null)
+  const [galleryPreviews, setGalleryPreviews] = useState<string[]>([])
+
+  // Object URLs for image previews (revoked on cleanup to avoid memory leaks)
+  useEffect(() => {
+    const turl = thumbnail ? URL.createObjectURL(thumbnail) : null
+    setThumbnailPreview(turl)
+    const gurls = selectedFiles.map((f) => URL.createObjectURL(f))
+    setGalleryPreviews(gurls)
+    return () => {
+      if (turl) URL.revokeObjectURL(turl)
+      gurls.forEach((u) => URL.revokeObjectURL(u))
+    }
+  }, [thumbnail, selectedFiles])
 
   // Fetch categories on component mount
   useEffect(() => {
@@ -74,58 +93,61 @@ export default function CreateProduct() {
       name: "",
       category: "",
       description: "",
+      price: "",
       status: "AVAILABLE",
       images: 0,
       features: [""],
-      specifications: "",
+      specifications: [{ key: "", value: "" }],
     })
     setSelectedFiles([])
     setThumbnail(null)
+    setUploadProgress(0)
   }
 
   const handleSave = async () => {
-    if (!formData.name || !formData.category || !formData.description || !thumbnail) return
+    const priceNum = typeof formData.price === 'string' ? parseFloat(formData.price) : formData.price
+    if (!formData.name || !formData.category || !formData.description || !thumbnail) {
+      toast.error("Please fill name, category, description, and thumbnail.")
+      return
+    }
+    if (formData.price === "" || formData.price == null || isNaN(priceNum) || priceNum <= 0) {
+      toast.error("Please enter a valid price (positive number).")
+      return
+    }
     setIsSaving(true)
+    setUploadProgress(0)
     try {
       const nonEmptyFeatures = formData.features.map(f => f.trim()).filter(Boolean)
-      let specs: any = undefined
-      if (formData.specifications && formData.specifications.trim()) {
-        try { specs = JSON.parse(formData.specifications) } catch { specs = formData.specifications }
-      }
+      const specsObj: Record<string, string> = {}
+      formData.specifications.forEach(({ key, value }) => {
+        const k = key.trim()
+        if (k) specsObj[k] = value.trim()
+      })
+      const specs = Object.keys(specsObj).length > 0 ? specsObj : undefined
 
       const payload: any = {
         name: formData.name,
         description: formData.description,
         category: formData.category,
-        status: formData.status,
+        price: Number(priceNum.toFixed(2)),
+        status: formData.status === "NOT_AVAILABLE" ? "NOT_AVAILABLE" : "AVAILABLE",
         image: thumbnail,
       }
+      if (nonEmptyFeatures.length > 0) payload.features = nonEmptyFeatures
+      if (specs) payload.specifications = specs
+      if (selectedFiles.length > 0) payload.images = selectedFiles
 
-      // Only add optional fields if they have valid values
-      if (nonEmptyFeatures.length > 0) {
-        payload.features = nonEmptyFeatures
-      }
-      if (specs && specs.trim()) {
-        payload.specifications = specs
-      }
-      if (selectedFiles.length > 0) {
-        payload.images = selectedFiles
-      }
-
-      console.log("Sending payload:", payload)
-      const res = await productService.createProduct(payload as any)
+      const res = await productService.createProduct(payload as any, (p) => setUploadProgress(p))
       if (res.success) {
         setShowSuccess(true)
+        toast.success("Product created successfully.")
+        router.push("/products")
       } else {
-        console.error("Create product failed", res)
+        toast.error("Failed to create product. Please try again.")
       }
     } catch (e) {
-      console.error("Create product error:", e)
-      // Log more details about the error
-      if (e instanceof Error) {
-        console.error("Error message:", e.message)
-        console.error("Error stack:", e.stack)
-      }
+      const msg = e instanceof Error ? e.message : "Failed to create product."
+      toast.error(msg)
     } finally {
       setIsSaving(false)
     }
@@ -142,6 +164,29 @@ export default function CreateProduct() {
     setFormData(prev => ({
       ...prev,
       features: prev.features.filter((_, i) => i !== index)
+    }))
+  }
+
+  const addSpecRow = () => {
+    setFormData(prev => ({
+      ...prev,
+      specifications: [...prev.specifications, { key: "", value: "" }]
+    }))
+  }
+  const removeSpecRow = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      specifications: prev.specifications.length > 1
+        ? prev.specifications.filter((_, i) => i !== index)
+        : [{ key: "", value: "" }]
+    }))
+  }
+  const updateSpecRow = (index: number, field: "key" | "value", value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      specifications: prev.specifications.map((row, i) =>
+        i === index ? { ...row, [field]: value } : row
+      )
     }))
   }
 
@@ -297,6 +342,19 @@ export default function CreateProduct() {
                     />
                   </div>
                   <div>
+                    <Label htmlFor="price">Price *</Label>
+                    <Input
+                      id="price"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={formData.price}
+                      onChange={(e) => updateFormData("price", e.target.value === "" ? "" : parseFloat(e.target.value) || e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
                     <Label htmlFor="category">Category *</Label>
                     <div className="mt-1 space-y-2">
                       <select
@@ -370,33 +428,57 @@ export default function CreateProduct() {
                   />
                 </div>
 
-                {/* Status and Specs */}
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <Label htmlFor="status">Status</Label>
-                    <select
-                      id="status"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md mt-1"
-                      value={formData.status}
-                      onChange={(e) => updateFormData("status", e.target.value)}
-                    >
-                      <option value="AVAILABLE">AVAILABLE</option>
-                      <option value="OUT_OF_STOCK">OUT_OF_STOCK</option>
-                      <option value="DISCONTINUED">DISCONTINUED</option>
-                      <option value="PRE_ORDER">PRE_ORDER</option>
-                    </select>
+                {/* Status */}
+                <div>
+                  <Label htmlFor="status">Status</Label>
+                  <select
+                    id="status"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md mt-1 max-w-xs"
+                    value={formData.status}
+                    onChange={(e) => updateFormData("status", e.target.value)}
+                  >
+                    <option value="AVAILABLE">AVAILABLE</option>
+                    <option value="NOT_AVAILABLE">NOT_AVAILABLE</option>
+                  </select>
+                </div>
+
+                {/* Specifications (key-value) */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <Label>Specifications</Label>
+                    <Button type="button" variant="outline" size="sm" onClick={addSpecRow}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add row
+                    </Button>
                   </div>
-                  <div>
-                    <Label htmlFor="specs">Specifications (JSON)</Label>
-                    <Textarea
-                      id="specs"
-                      rows={4}
-                      placeholder='e.g. {"power": "400W", "efficiency": "21.5%"}'
-                      value={formData.specifications}
-                      onChange={(e) => updateFormData("specifications", e.target.value)}
-                      className="mt-1"
-                    />
+                  <div className="space-y-2">
+                    {formData.specifications.map((row, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <Input
+                          placeholder="Key (e.g. power)"
+                          value={row.key}
+                          onChange={(e) => updateSpecRow(index, "key", e.target.value)}
+                          className="flex-1 min-w-0"
+                        />
+                        <Input
+                          placeholder="Value (e.g. 400W)"
+                          value={row.value}
+                          onChange={(e) => updateSpecRow(index, "value", e.target.value)}
+                          className="flex-1 min-w-0"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeSpecRow(index)}
+                          className="shrink-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
                   </div>
+                  <p className="text-xs text-gray-500 mt-1">Add key-value pairs; empty keys are ignored.</p>
                 </div>
 
                 {/* Features */}
@@ -482,20 +564,30 @@ export default function CreateProduct() {
                         <p className="text-sm text-gray-600 mb-2">
                           {selectedFiles.length} file{selectedFiles.length > 1 ? "s" : ""} selected
                         </p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                           {selectedFiles.map((file, index) => (
-                            <div key={index} className="border rounded p-2 text-left">
-                              <p className="text-xs font-medium truncate" title={file.name}>{file.name}</p>
-                              <p className="text-[10px] text-gray-500">{Math.round(file.size / 1024)} KB</p>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="mt-2 w-full"
-                                onClick={() => removeSelectedFile(index)}
-                              >
-                                Remove
-                              </Button>
+                            <div key={index} className="rounded-lg border border-gray-200 bg-gray-50/50 overflow-hidden">
+                              {galleryPreviews[index] && (
+                                <div className="relative aspect-square bg-gray-100">
+                                  <img
+                                    src={galleryPreviews[index]}
+                                    alt={file.name}
+                                    className="h-full w-full object-cover"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => removeSelectedFile(index)}
+                                    className="absolute right-2 top-2 rounded-full bg-red-500 p-1.5 text-white shadow hover:bg-red-600"
+                                    aria-label={`Remove ${file.name}`}
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              )}
+                              <div className="p-2">
+                                <p className="text-xs font-medium truncate text-gray-700" title={file.name}>{file.name}</p>
+                                <p className="text-[10px] text-gray-500">{Math.round(file.size / 1024)} KB</p>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -505,14 +597,22 @@ export default function CreateProduct() {
                 </div>
 
                 {/* Action Buttons */}
+                {isSaving && uploadProgress > 0 && uploadProgress < 100 && (
+                  <div className="space-y-1">
+                    <p className="text-sm text-gray-600">Uploading… {Math.round(uploadProgress)}%</p>
+                    <div className="h-2 w-full rounded-full bg-gray-200 overflow-hidden">
+                      <div className="h-full bg-[#0a6650] transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                    </div>
+                  </div>
+                )}
                 <div className="flex gap-4 pt-6 border-t">
                   <Button 
                     onClick={handleSave}
-                    disabled={isSaving || !formData.name || !formData.category || !formData.description || !thumbnail}
+                    disabled={isSaving || !formData.name || !formData.category || !formData.description || !thumbnail || formData.price === "" || (typeof formData.price === 'number' ? formData.price <= 0 : parseFloat(String(formData.price)) <= 0)}
                     className="bg-[#0a6650] hover:bg-[#084c3d]"
                   >
                     <Save className="h-4 w-4 mr-2" />
-                    {isSaving ? "Creating..." : "Create Product"}
+                    {isSaving ? (uploadProgress > 0 ? "Uploading…" : "Creating…") : "Create Product"}
                   </Button>
                   <Link href="/products">
                     <Button variant="outline">

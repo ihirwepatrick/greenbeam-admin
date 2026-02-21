@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Database, Package, Plus, Users, Eye, Settings, Home, LogOut, Bell, CreditCard, ShoppingCart, DollarSign } from "lucide-react"
+import { StatsCardSkeleton } from "@/components/StatsCardSkeleton"
+import { Skeleton } from "@/components/ui/skeleton"
 import NotificationSystem from "@/components/NotificationSystem"
 import { useAuth } from "@/contexts/AuthContext"
 import { useDashboardStats, useEnquiries } from "@/hooks/use-api"
@@ -112,46 +114,56 @@ export default function AdminDashboard() {
 
           <div className="flex-1 overflow-y-auto p-8">
             <div className="grid md:grid-cols-4 gap-6 mb-8">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Enquiries</CardTitle>
-                  <Users className="h-4 w-4 text-[#0a6650]" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{cards.totalEnquiries}</div>
-                  <p className="text-xs text-green-600">Live</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pending Enquiries</CardTitle>
-                  <Package className="h-4 w-4 text-green-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{cards.pendingEnquiries}</div>
-                  <p className="text-xs text-green-600">Live</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Products</CardTitle>
-                  <Package className="h-4 w-4 text-blue-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{cards.totalProducts}</div>
-                  <p className="text-xs text-green-600">Live</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-                  <Database className="h-4 w-4 text-purple-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{cards.totalUsers}</div>
-                  <p className="text-xs text-green-600">Live</p>
-                </CardContent>
-              </Card>
+              {statsLoading ? (
+                <>
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <StatsCardSkeleton key={i} />
+                  ))}
+                </>
+              ) : (
+                <>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total Enquiries</CardTitle>
+                      <Users className="h-4 w-4 text-[#0a6650]" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{cards.totalEnquiries}</div>
+                      <p className="text-xs text-green-600">Live</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Pending Enquiries</CardTitle>
+                      <Package className="h-4 w-4 text-green-600" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{cards.pendingEnquiries}</div>
+                      <p className="text-xs text-green-600">Live</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total Products</CardTitle>
+                      <Package className="h-4 w-4 text-blue-600" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{cards.totalProducts}</div>
+                      <p className="text-xs text-green-600">Live</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                      <Database className="h-4 w-4 text-purple-600" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{cards.totalUsers}</div>
+                      <p className="text-xs text-green-600">Live</p>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
             </div>
 
             <div className="grid lg:grid-cols-2 gap-8">
@@ -164,8 +176,17 @@ export default function AdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   {enquiriesLoading ? (
-                    <div className="flex justify-center py-6">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
+                    <div className="space-y-3">
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="space-y-2">
+                            <Skeleton className="h-4 w-32" />
+                            <Skeleton className="h-3 w-48" />
+                            <Skeleton className="h-3 w-24" />
+                          </div>
+                          <Skeleton className="h-8 w-16" />
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <>

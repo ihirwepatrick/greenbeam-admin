@@ -132,6 +132,11 @@ export interface Enquiry {
   createdAt: string;
   updatedAt?: string;
   responses?: EnquiryResponse[];
+  product?: string;
+  productId?: string | number;
+  productImage?: string;
+  phone?: string;
+  priority?: string;
 }
 
 export interface EnquiryResponse {
@@ -145,6 +150,8 @@ export interface CreateEnquiryRequest {
   email: string;
   phone?: string;
   product?: string;
+  productId?: string | number;
+  productImage?: string;
   subject: string;
   message: string;
   priority?: 'LOW' | 'MEDIUM' | 'HIGH';
@@ -160,12 +167,13 @@ export interface RespondToEnquiryRequest {
   sendEmail?: boolean;
 }
 
-// Product Types
+// Product Types (API: status AVAILABLE | NOT_AVAILABLE only)
 export interface Product {
   id: string | number;
   name: string;
   description: string;
   category: string;
+  price?: string | number;
   image: string;
   images: string[] | null;
   features?: string[];
@@ -181,17 +189,19 @@ export interface CreateProductRequest {
   name: string;
   description: string;
   category: string;
+  price: number | string; // required, positive, 2 decimals
   status?: string;
   features?: string[];
   specifications?: any;
-  image: File; // thumbnail
-  images?: File[]; // gallery
+  image: File;
+  images?: File[];
 }
 
 export interface UpdateProductRequest {
   name?: string;
   description?: string;
   category?: string;
+  price?: number | string;
   status?: string;
   features?: string[];
   specifications?: any;

@@ -27,10 +27,13 @@ import {
   LogOut,
   Bell
 } from 'lucide-react'
+import { toast } from "sonner"
 import { useAllCarts, useCartStats } from "@/hooks/use-api"
 import { Cart } from "@/lib/types/api"
+import { TableSkeleton } from "@/components/TableSkeleton"
 import AdminGuard from "@/components/AdminGuard"
 import { useAuth } from "@/contexts/AuthContext"
+import { formatRWF } from "@/lib/utils"
 import { sidebarLinks } from "@/lib/admin-links"
 
 const MAIN_SITE_URL = process.env.NEXT_PUBLIC_MAIN_SITE_URL || "/"
@@ -59,8 +62,8 @@ export default function AdminCartsPage() {
     })
   }
 
-  const carts = cartsData?.data || []
-  const pagination = cartsData?.pagination
+  const carts = (cartsData as any)?.carts ?? []
+  const pagination = (cartsData as any)?.pagination
 
   return (
     <AdminGuard>
@@ -252,7 +255,7 @@ export default function AdminCartsPage() {
                           {cart.totalItems} {cart.totalItems === 1 ? 'item' : 'items'}
                         </Badge>
                         <Badge variant="outline">
-                          ${cart.total}
+                          {formatRWF(cart.total)}
                         </Badge>
                       </div>
                       <p className="text-sm text-gray-500 mt-1">
@@ -293,7 +296,7 @@ export default function AdminCartsPage() {
                                 <Plus className="h-3 w-3" />
                               </Button>
                             </div>
-                            <p className="font-semibold">${item.total}</p>
+                            <p className="font-semibold">{formatRWF(item.total)}</p>
                             <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
                               <Trash2 className="h-4 w-4" />
                             </Button>

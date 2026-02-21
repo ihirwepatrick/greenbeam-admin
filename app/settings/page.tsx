@@ -36,6 +36,7 @@ import {
   Download,
   Upload,
 } from "lucide-react"
+import { toast } from "sonner"
 import { useAuth } from "@/contexts/AuthContext"
 import { authService } from "@/lib/services/api"
 import { sidebarLinks } from "@/lib/admin-links"
@@ -89,14 +90,15 @@ export default function AdminSettings() {
     setIsSaving(true)
     setSaveMessage("")
     try {
-      // Here you would typically call an API to update profile
-      // For now, we'll simulate the operation
+      // Profile update API can be wired here when available
       await new Promise(resolve => setTimeout(resolve, 1000))
-      
       setSaveMessage("Profile updated successfully!")
+      toast.success("Profile updated successfully.")
       setTimeout(() => setSaveMessage(""), 3000)
     } catch (error) {
-      setSaveMessage("Error updating profile")
+      const msg = error instanceof Error ? error.message : "Failed to update profile."
+      setSaveMessage(msg)
+      toast.error(msg)
     } finally {
       setIsSaving(false)
     }
@@ -122,20 +124,24 @@ export default function AdminSettings() {
         currentPassword,
         newPassword
       })
-      
       if (response.success) {
         setSaveMessage("Password changed successfully!")
         setCurrentPassword("")
         setNewPassword("")
         setConfirmPassword("")
+        toast.success("Password changed successfully.")
       } else {
-        setSaveMessage("Failed to change password")
+        const msg = "Failed to change password. Please check your current password."
+        setSaveMessage(msg)
+        toast.error(msg)
       }
     } catch (error) {
-      setSaveMessage("Error changing password")
+      const msg = error instanceof Error ? error.message : "Failed to change password. Please try again."
+      setSaveMessage(msg)
+      toast.error(msg)
     } finally {
       setIsSaving(false)
-      setTimeout(() => setSaveMessage(""), 3000)
+      setTimeout(() => setSaveMessage(""), 5000)
     }
   }
 

@@ -29,8 +29,10 @@ import {
   ShoppingCart,
   LogOut
 } from 'lucide-react'
+import { toast } from "sonner"
 import { useAllPayments, usePaymentStats } from "@/hooks/use-api"
 import { Payment } from "@/lib/types/api"
+import { TableSkeleton } from "@/components/TableSkeleton"
 import AdminGuard from "@/components/AdminGuard"
 import { useAuth } from "@/contexts/AuthContext"
 import { sidebarLinks } from "@/lib/admin-links"
@@ -114,14 +116,16 @@ export default function AdminPaymentsPage() {
 
   const formatCurrency = (amount: string | number) => {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-RW', {
       style: 'currency',
-      currency: 'USD'
+      currency: 'RWF',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(numAmount)
   }
 
-  const payments = paymentsData?.data || []
-  const pagination = paymentsData?.pagination
+  const payments = (paymentsData as any)?.payments ?? []
+  const pagination = (paymentsData as any)?.pagination
 
   return (
     <AdminGuard>
@@ -285,10 +289,11 @@ export default function AdminPaymentsPage() {
       </div>
 
       {loading ? (
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Loading payments...</p>
-        </div>
+        <Card>
+          <CardContent className="p-6">
+            <TableSkeleton rows={6} cols={5} />
+          </CardContent>
+        </Card>
       ) : error ? (
         <div className="text-center py-12">
           <AlertCircle className="h-16 w-16 mx-auto text-red-400 mb-4" />

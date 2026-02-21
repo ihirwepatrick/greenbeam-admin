@@ -1,13 +1,13 @@
 import { TableSkeleton } from "@/components/TableSkeleton"
 
-export default function OrdersLoading() {
+export default function PaymentsLoading() {
   return (
     <div className="p-8">
       <div className="mb-6">
         <div className="h-8 w-48 bg-gray-200 rounded animate-pulse mb-2" />
         <div className="h-4 w-64 bg-gray-100 rounded animate-pulse" />
       </div>
-      <TableSkeleton rows={8} cols={6} />
+      <TableSkeleton rows={8} cols={5} />
     </div>
   )
 }
