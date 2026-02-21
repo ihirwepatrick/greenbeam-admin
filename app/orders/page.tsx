@@ -131,6 +131,7 @@ export default function AdminOrdersPage() {
   const { data: statsData } = useOrderStats()
 
   const ordersToShow = (ordersData as any)?.orders ?? fallbackOrders
+  const pagination = (ordersData as any)?.pagination
   const filteredOrders = ordersToShow.filter((order: any) => {
     const display = getOrderDisplayData(order)
     const matchesSearch =
@@ -186,20 +187,6 @@ export default function AdminOrdersPage() {
         : 'N/A'
     }
   }
-
-  const ordersToShow = (ordersData as any)?.orders ?? fallbackOrders
-  const pagination = (ordersData as any)?.pagination
-
-  const filteredOrders = ordersToShow.filter((order: any) => {
-    const display = getOrderDisplayData(order)
-    const matchesSearch =
-      String(display.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
-      String(display.customer).toLowerCase().includes(searchTerm.toLowerCase()) ||
-      String(display.email).toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = selectedStatus === 'all' || display.status === selectedStatus
-    const matchesPaymentStatus = selectedPaymentStatus === 'all' || display.paymentStatus === selectedPaymentStatus
-    return matchesSearch && matchesStatus && matchesPaymentStatus
-  })
 
   return (
     <AdminGuard>
