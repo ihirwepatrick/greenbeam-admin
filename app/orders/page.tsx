@@ -328,7 +328,7 @@ export default function AdminOrdersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredOrders.map((order) => {
+                {filteredOrders.map((order: any) => {
                   const displayData = getOrderDisplayData(order)
                   return (
                   <TableRow key={displayData.id}>

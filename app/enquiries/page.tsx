@@ -160,9 +160,8 @@ export default function AdminEnquiries() {
   }
   
   // API returns { data: list, pagination }; ensure we use the array
-  const apiList = Array.isArray(apiEnquiriesResponse?.data)
-    ? apiEnquiriesResponse.data
-    : (apiEnquiriesResponse?.data?.data ?? [])
+  const responseData = (apiEnquiriesResponse as { data?: unknown[] | { data?: unknown[] } } | null)?.data
+  const apiList = Array.isArray(responseData) ? responseData : (responseData && typeof responseData === "object" && "data" in responseData ? (responseData as { data: unknown[] }).data ?? [] : [])
   const mappedApiEnquiries = apiList.map((e: any) => ({
     id: e.id,
     customerName: e.customerName || e.name,
@@ -186,9 +185,9 @@ export default function AdminEnquiries() {
   // Calculate dynamic stats
   const stats = useMemo(() => {
     const totalEnquiries = enquiries.length
-    const newEnquiries = enquiries.filter(e => e.status === "pending" || e.status === "new").length
-    const inProgress = enquiries.filter(e => e.status === "in-progress" || e.status === "assigned").length
-    const resolved = enquiries.filter(e => e.status === "resolved" || e.status === "completed").length
+    const newEnquiries = enquiries.filter((e: { status?: string }) => e.status === "pending" || e.status === "new").length
+    const inProgress = enquiries.filter((e: { status?: string }) => e.status === "in-progress" || e.status === "assigned").length
+    const resolved = enquiries.filter((e: { status?: string }) => e.status === "resolved" || e.status === "completed").length
     
     return {
       total: totalEnquiries,
@@ -254,7 +253,7 @@ export default function AdminEnquiries() {
     console.log("Updating status for:", enquiryId, "to:", newStatus)
   }
 
-  const filteredEnquiries = enquiries.filter(enquiry => {
+  const filteredEnquiries = enquiries.filter((enquiry: { status?: string; priority?: string; customerName?: string; subject?: string; product?: string }) => {
     const matchesStatus = statusFilter === "All" || enquiry.status === statusFilter
     const matchesPriority = priorityFilter === "All" || enquiry.priority === priorityFilter
     const term = searchTerm.toLowerCase()
@@ -574,7 +573,7 @@ export default function AdminEnquiries() {
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredEnquiries.map((enquiry) => (
+                        {filteredEnquiries.map((enquiry: { id: string; productImage?: string; product?: string; customerName: string; email?: string; subject?: string; status?: string; priority?: string; createdAt?: string }) => (
                           <tr key={enquiry.id} className="border-b hover:bg-gray-50/50 transition-colors">
                             <td className="p-3">
                               <div className="flex items-center gap-2">
@@ -596,10 +595,10 @@ export default function AdminEnquiries() {
                             </td>
                             <td className="p-3 text-sm text-gray-700 max-w-[200px] truncate" title={enquiry.subject}>{enquiry.subject}</td>
                             <td className="p-3">
-                              <Badge className={getStatusColor(enquiry.status)}>{enquiry.status}</Badge>
+                              <Badge className={getStatusColor(enquiry.status ?? "")}>{enquiry.status}</Badge>
                             </td>
                             <td className="p-3">
-                              <Badge className={getPriorityColor(enquiry.priority)}>{enquiry.priority}</Badge>
+                              <Badge className={getPriorityColor(enquiry.priority ?? "")}>{enquiry.priority}</Badge>
                             </td>
                             <td className="p-3 text-sm text-gray-600">{enquiry.createdAt}</td>
                             <td className="p-3">
@@ -630,17 +629,17 @@ export default function AdminEnquiries() {
                 </CardContent>
               </Card>
             ) : (
-              filteredEnquiries.map((enquiry) => (
+              filteredEnquiries.map((enquiry: { id: string; customerName: string; status?: string; priority?: string; product?: string; productImage?: string; email?: string; phone?: string; location?: string; createdAt?: string; source?: string; subject?: string; message?: string }) => (
               <Card key={enquiry.id} className="hover:shadow-lg transition-shadow">
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-3">
                         <h3 className="font-semibold text-lg">{enquiry.customerName}</h3>
-                        <Badge className={getStatusColor(enquiry.status)}>
+                        <Badge className={getStatusColor(enquiry.status ?? "")}>
                           {enquiry.status}
                         </Badge>
-                        <Badge className={getPriorityColor(enquiry.priority)}>
+                        <Badge className={getPriorityColor(enquiry.priority ?? "")}>
                           {enquiry.priority}
                         </Badge>
                       </div>

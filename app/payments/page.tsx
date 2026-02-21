@@ -313,7 +313,7 @@ export default function AdminPaymentsPage() {
         <>
           {/* Payments List */}
           <div className="space-y-6">
-            {payments.map((payment) => (
+            {payments.map((payment: Payment) => (
               <Card key={payment.id} className="hover:shadow-md transition-shadow">
                 <CardHeader>
                   <div className="flex items-center justify-between">

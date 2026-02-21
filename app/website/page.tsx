@@ -105,7 +105,8 @@ export default function AdminWebsite() {
       // Persist website settings to backend
       const response = await settingsService.updateSettingsByCategory('website', settings)
       if (!response.success) {
-        throw new Error(response?.error?.message || 'Failed to save website settings')
+        const err = response as { error?: { message?: string } }
+        throw new Error(err?.error?.message || 'Failed to save website settings')
       }
       
       setSaveMessage("Website settings saved successfully!")
