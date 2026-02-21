@@ -236,7 +236,7 @@ export default function AdminCartsPage() {
         <>
           {/* Carts List */}
           <div className="space-y-6">
-            {carts.map((cart) => (
+            {carts.map((cart: Cart) => (
               <Card key={cart.id} className="hover:shadow-md transition-shadow">
                 <CardHeader>
                   <div className="flex items-center justify-between">
