@@ -342,17 +342,18 @@ export default function CreateProduct() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="price">Price *</Label>
+                    <Label htmlFor="price">Price (RWF) *</Label>
                     <Input
                       id="price"
                       type="number"
                       min="0"
                       step="0.01"
-                      placeholder="0.00"
+                      placeholder="0 (RWF)"
                       value={formData.price}
                       onChange={(e) => updateFormData("price", e.target.value === "" ? "" : parseFloat(e.target.value) || e.target.value)}
                       className="mt-1"
                     />
+                    <p className="text-xs text-gray-500 mt-1">Enter price in Rwandan Francs (RWF)</p>
                   </div>
                   <div>
                     <Label htmlFor="category">Category *</Label>

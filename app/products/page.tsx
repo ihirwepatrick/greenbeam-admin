@@ -561,7 +561,7 @@ export default function AdminProducts() {
                           <th className="text-left p-3 text-sm font-medium text-gray-700">Image</th>
                           <th className="text-left p-3 text-sm font-medium text-gray-700">Name</th>
                           <th className="text-left p-3 text-sm font-medium text-gray-700">Category</th>
-                          <th className="text-left p-3 text-sm font-medium text-gray-700">Price</th>
+                          <th className="text-left p-3 text-sm font-medium text-gray-700">Price (RWF)</th>
                           <th className="text-left p-3 text-sm font-medium text-gray-700">Status</th>
                           <th className="text-left p-3 text-sm font-medium text-gray-700">Date</th>
                           <th className="text-left p-3 text-sm font-medium text-gray-700 w-32">Actions</th>
@@ -641,7 +641,7 @@ export default function AdminProducts() {
                         
                         <h3 className="font-semibold text-sm mb-2 line-clamp-2">{product.name}</h3>
                         {(product as any).price != null && (
-                          <p className="text-sm font-medium text-[#0a6650] mb-1">{(product as any).price}</p>
+                          <p className="text-sm font-medium text-[#0a6650] mb-1">{(product as any).price} RWF</p>
                         )}
                         <p className="text-gray-600 text-xs mb-3 line-clamp-2">{product.description}</p>
                         
@@ -692,7 +692,7 @@ export default function AdminProducts() {
                             <th className="text-left p-3 text-sm font-medium text-gray-700">Image</th>
                             <th className="text-left p-3 text-sm font-medium text-gray-700">Name</th>
                             <th className="text-left p-3 text-sm font-medium text-gray-700">Category</th>
-                            <th className="text-left p-3 text-sm font-medium text-gray-700">Price</th>
+                            <th className="text-left p-3 text-sm font-medium text-gray-700">Price (RWF)</th>
                             <th className="text-left p-3 text-sm font-medium text-gray-700">Status</th>
                             <th className="text-left p-3 text-sm font-medium text-gray-700">Date</th>
                             <th className="text-left p-3 text-sm font-medium text-gray-700 w-40">Actions</th>
@@ -719,7 +719,7 @@ export default function AdminProducts() {
                                 <Badge variant="secondary" className="text-xs">{product.category}</Badge>
                               </td>
                               <td className="p-3 text-sm font-medium text-[#0a6650]">
-                                {(product as any).price != null ? String((product as any).price) : "—"}
+                                {(product as any).price != null ? `${String((product as any).price)} RWF` : "—"}
                               </td>
                               <td className="p-3">
                                 {product.status && (
@@ -861,8 +861,8 @@ export default function AdminProducts() {
                       <div className="space-y-2 text-sm">
                         {(selectedProduct as any).price != null && (
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Price:</span>
-                            <span className="font-medium">{(selectedProduct as any).price}</span>
+                            <span className="text-gray-600">Price (RWF):</span>
+                            <span className="font-medium">{(selectedProduct as any).price} RWF</span>
                           </div>
                         )}
                         <div className="flex justify-between">
@@ -959,8 +959,9 @@ export default function AdminProducts() {
                 <Input id="edit-name" value={editForm.name} onChange={(e) => updateEditForm("name", e.target.value)} className="mt-1" />
               </div>
               <div>
-                <Label htmlFor="edit-price">Price</Label>
-                <Input id="edit-price" type="number" min="0" step="0.01" value={editForm.price} onChange={(e) => updateEditForm("price", e.target.value === "" ? "" : parseFloat(e.target.value) || e.target.value)} className="mt-1" />
+                <Label htmlFor="edit-price">Price (RWF)</Label>
+                <Input id="edit-price" type="number" min="0" step="0.01" placeholder="0 (RWF)" value={editForm.price} onChange={(e) => updateEditForm("price", e.target.value === "" ? "" : parseFloat(e.target.value) || e.target.value)} className="mt-1" />
+                <p className="text-xs text-gray-500 mt-1">Amount in Rwandan Francs (RWF)</p>
               </div>
               <div>
                 <Label htmlFor="edit-category">Category</Label>
